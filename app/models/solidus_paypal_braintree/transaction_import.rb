@@ -6,6 +6,14 @@ module SolidusPaypalBraintree
 
     include ActiveModel::Model
 
+    # Apple Pay does not send street address until the last step.
+    # If street is a factor in the tax calculation
+    # you will have a discrepency after the payment is made.
+    # Set this to `true` and the tax will recalculate,
+    # but then the total may differ from the one shown to the customer
+    class_attribute :recalculate_total_with_full_address
+    self.recalculate_total_with_full_address = false
+
     validate do
       errors.add("Address", "is invalid") if address && !address.valid?
 
@@ -45,6 +53,8 @@ module SolidusPaypalBraintree
           # about tax zone cachine between address changes
           order.instance_variable_set("@tax_zone", nil)
         end
+
+        order.update! if self.class.recalculate_total_with_full_address
 
         payment = order.payments.new source: source,
           payment_method: transaction.payment_method,
